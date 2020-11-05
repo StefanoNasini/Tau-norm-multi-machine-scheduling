@@ -1,0 +1,164 @@
+
+
+reset;
+
+option solver cplexamp;
+#option cplex_options 'presolve = 0 timelimit = 43200 integrality = 1e-09 mipgap = 0 mipemphasis 1 mipstartvalue = 0 threads 1 prereduce = 0';
+option cplex_options 'timelimit = 7200 integrality = 10.e-5 mipgap = 0.001';
+
+param DetailedOutput0 symbolic;
+param DetailedOutput symbolic;
+param VI_type;
+param MS_max;
+param a0;
+param DataType;
+
+model Model_UB.mod;
+
+data cases.dat;
+
+if(tau < 2) then{
+	let T := 1;
+}
+if(tau > 4) then{
+	let T := 1;
+}
+
+let {e in 1..T} ell[e] := MS_max*(e/T);
+
+let DetailedOutput:= DetailedOutput0;
+
+#-----------------------------------------------------------------------
+# Output parameters
+#-----------------------------------------------------------------------
+
+param elapsed_time default 0;
+param system_time default 0;
+
+param NM_max default 0;
+param NM_min default 0;
+
+param xx {i in 1..M, k in 1..NM[i]};
+
+param P_max_max default 0;
+param P_max_min default 0;
+param P_min_max default 0;
+param P_min_min default 0;
+
+param Phi_max default 0;
+param Phi_min default 0;
+
+param OF default 0;
+
+########################################################################
+# Define the problems
+########################################################################
+
+include defineProblems_UB.fun;
+
+
+########################################################################
+# Solve the min-mean-min-CTV-problem
+########################################################################
+
+if(tau < 5) then{
+
+	if(VI_type == 0) then{
+
+		if (abs(floor(NM[1]/2)-NM[1]/2)==0) then{
+				print('Solve UB Even without VI');
+				let a0 :=1;
+				solve Theta_UB_Even;
+
+		}
+		if (abs(floor(NM[1]/2)-NM[1]/2)>0) then{
+				print('Solve UB Odd without VI');	
+				let a0 :=0;
+				solve Theta_UB_Odd;
+
+		}
+	}
+	if(VI_type == 1) then{
+
+		if (abs(floor(NM[1]/2)-NM[1]/2)==0) then{
+				print('Solve UB Even with VI');
+				let a0 :=1;
+				solve Theta_UB_Even_VI;
+
+		}
+		if (abs(floor(NM[1]/2)-NM[1]/2)>0) then{
+				print('Solve UB Odd with VI');	
+				let a0 :=0;
+				solve Theta_UB_Odd_VI;
+
+		}
+	}
+
+}
+
+if(tau >= 5) then{
+
+	if(VI_type == 0) then{
+
+		if (abs(floor(NM[1]/2)-NM[1]/2)==0) then{
+				print('Solve UB min-max Even without VI');
+				let a0 :=1;
+				solve Theta_UB_minmax_Even;
+
+		}
+		if (abs(floor(NM[1]/2)-NM[1]/2)>0) then{
+				print('Solve UB min-max Odd without VI');	
+				let a0 :=0;
+				solve Theta_UB_minmax_Odd;
+
+		}
+	}
+	if(VI_type == 1) then{
+
+		if (abs(floor(NM[1]/2)-NM[1]/2)==0) then{
+				print('Solve UB min-max Even with VI');
+				let a0 :=1;
+				solve Theta_UB_minmax_Even_VI;
+
+		}
+		if (abs(floor(NM[1]/2)-NM[1]/2)>0) then{
+				print('Solve UB min-max Odd with VI');	
+				let a0 :=0;
+				solve Theta_UB_minmax_Odd_VI;
+
+		}
+	}
+
+}
+
+let {i in 1..M, k in 1..NM[i]} xx[i,k] := sum{h in 1..N}  p[h]*y[h,i,k];
+
+let P_max_max := max{i in 1..M} xx[i,NM[i]];
+let P_max_min := min{i in 1..M} xx[i,NM[i]];
+let P_min_max := max{i in 1..M} xx[i,1];
+let P_min_min := min{i in 1..M} xx[i,1];
+
+let NM_max := max{i in 1..M} NM[i];
+let NM_min := min{i in 1..M} NM[i];
+
+if(tau < 5) then{
+
+	let Phi_max := max{i in 1..M} (phi[i])^(1/tau);
+	let Phi_min := min{i in 1..M} (phi[i])^(1/tau);
+	let OF := (MinNorme)^(1/tau);
+	
+}
+
+if(tau >= 5) then{
+
+	let Phi_max := max{i in 1..M} ((1/(2*NM[i]))*(sum{k in 1..floor(NM[i]/2)} (beta0[i,k])^2 + sum{k in a0..floor(NM[i]/2)} 2*(beta1[i,k]/2 - beta2[i])^2));
+	let Phi_min := min{i in 1..M} ((1/(2*NM[i]))*(sum{k in 1..floor(NM[i]/2)} (beta0[i,k])^2 + sum{k in a0..floor(NM[i]/2)} 2*(beta1[i,k]/2 - beta2[i])^2));
+
+	let OF := MinMax;
+	
+}
+
+let elapsed_time := _total_solve_elapsed_time;
+let system_time := _total_solve_system_time;
+
+printf '\n %d %s %d  %d %d %d %d %d %d %11.3f %11.3f %11.3f %11.3f %11.3f %11.3f %11.3f %11.3f %11.3f', DataType, 'UB', tau, T, M, N, NM_min, NM_max, VI_type, Phi_max, Phi_min, OF, P_max_max, P_max_min, P_min_max, P_min_min, elapsed_time, system_time >> (DetailedOutput);		

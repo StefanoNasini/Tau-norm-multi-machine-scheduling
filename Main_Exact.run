@@ -1,0 +1,101 @@
+
+
+reset;
+
+option solver cplexamp;
+#option cplex_options 'presolve = 0 timelimit = 43200 integrality = 1e-09 mipgap = 0 mipemphasis 1 mipstartvalue = 0 threads 1 prereduce = 0';
+option cplex_options 'timelimit = 7200 integrality = 10.e-5 mipgap = 0.01';
+
+model Model_Exact.mod;
+
+param DetailedOutput0 symbolic;
+param DetailedOutput symbolic;
+param VI_type;
+param MS_max;
+param DataType;
+
+data cases.dat;
+
+if(tau < 2) then{
+	let T := 1;
+}
+if(tau > 4) then{
+	let T := 1;
+}
+
+let {e in 1..T} ell[e] := MS_max*(e/T);
+
+let DetailedOutput:= DetailedOutput0;
+
+#-----------------------------------------------------------------------
+# Output parameters
+#-----------------------------------------------------------------------
+
+param elapsed_time default 0;
+param system_time default 0;
+
+param NM_max default 0;
+param NM_min default 0;
+
+param xx {i in 1..M, k in 1..NM[i]};
+
+param P_max_max default 0;
+param P_max_min default 0;
+param P_min_max default 0;
+param P_min_min default 0;
+
+param Phi_max default 0;
+param Phi_min default 0;
+
+param OF default 0;
+
+########################################################################
+# Define the problems
+########################################################################
+
+include defineProblems_Exact.fun;
+
+########################################################################
+# Solve the min-mean-min-CTV-problem
+########################################################################
+
+print('Solve Exact min-max');
+
+if(tau < 5) then{
+	solve Theta_Exact;
+}
+if(tau >= 5) then{
+	solve Theta_Exact_minmax;
+}
+
+let {i in 1..M, k in 1..NM[i]} xx[i,k] := sum{h in 1..N}  p[h]*y[h,i,k];
+
+let P_max_max := max{i in 1..M} xx[i,NM[i]];
+let P_max_min := min{i in 1..M} xx[i,NM[i]];
+let P_min_max := max{i in 1..M} (min{j in 1..NM[i]} xx[i,j]);
+let P_min_min := min{i in 1..M} (min{j in 1..NM[i]} xx[i,j]);
+
+let NM_max := max{i in 1..M} NM[i];
+let NM_min := min{i in 1..M} NM[i];
+
+if(tau < 5) then{
+
+	let Phi_max := max{i in 1..M} (phi[i])^(1/tau);
+	let Phi_min := min{i in 1..M} (phi[i])^(1/tau);
+	let OF := (MinNorme)^(1/tau);
+	
+}
+
+if(tau >= 5) then{
+
+	let Phi_max := max{i in 1..M} ((sum{k in 1..NM[i]}(C[i,k] - (sum{kk in 1..NM[i]} C[i,kk])/NM[i] )^2)/NM[i]);
+	let Phi_min := min{i in 1..M} ((sum{k in 1..NM[i]}(C[i,k] - (sum{kk in 1..NM[i]} C[i,kk])/NM[i] )^2)/NM[i]);
+
+	let OF := MinMax;
+	
+}
+
+let elapsed_time := _total_solve_elapsed_time;
+let system_time := _total_solve_system_time;
+
+printf '\n %d %s %d  %d %d %d %d %d %d %11.3f %11.3f %11.3f %11.3f %11.3f %11.3f %11.3f %11.3f %11.3f', DataType, 'Ex', tau, T, M, N, NM_min, NM_max, VI_type, Phi_max, Phi_min, OF, P_max_max, P_max_min, P_min_max, P_min_min, elapsed_time, system_time >> (DetailedOutput);		

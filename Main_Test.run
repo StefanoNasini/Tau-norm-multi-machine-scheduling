@@ -1,0 +1,22 @@
+
+
+reset;
+
+option solver cplexamp;
+option cplex_options 'timelimit = 14400 integrality = 10.e-8 mipgap = 0';
+
+model Model_UB.mod;
+data cases_even.dat;
+solve;
+
+reset;
+
+model Model_Exact.mod;
+data cases_even.dat;
+solve;
+
+reset;
+
+model Model_LB.mod;
+data cases_even.dat;
+solve;
