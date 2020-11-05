@@ -10,4 +10,4 @@ To replicate the large instances with n = 90, 180, 270, 360 jobs, run the follow
 
 - Main_SimulatedInstances.m .
 
-This programs required to have IBM ILOG-CPLEX installed in your machine.
+These programs require AMPL and IBM ILOG-CPLEX installed in your machine.
